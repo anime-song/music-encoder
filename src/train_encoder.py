@@ -138,14 +138,15 @@ if __name__ == "__main__":
     x_train, x_test, dataset = load_from_npz()
     monitor = 'val_loss'
     model_input = tf.keras.layers.Input(shape=(None, 12 * 3 * 7, 3))
-    ae_config = MusicEncoderConfig()
-    music_rvq_encoder = MusicEncoder(
-        config=ae_config,
+    config = MusicEncoderConfig()
+    music_encoder = MusicEncoder(
+        config=config,
         batch_size=batch_size,
         seq_len=patch_len)
-    music_rvq_ae_out = music_rvq_encoder(model_input)
-    model = tf.keras.Model(inputs=[model_input], outputs=music_rvq_ae_out)
-    # model.load_weights("./model/music_rvq_encoder/music_encoder.ckpt")
+    music_encoder.load_quantize_model(
+        "./model/quantize_model/quantize_model.ckpt")
+    output = music_encoder(model_input)
+    model = tf.keras.Model(inputs=[model_input], outputs=output)
 
     # ジェネレーター作成
     train_gen = DataGeneratorBatch(
@@ -184,7 +185,7 @@ if __name__ == "__main__":
         save_weights_only=True,
         initial_value_threshold=initial_value_loss)
 
-    plot_callback = CustomCallback(plot_gen, music_rvq_encoder)
+    plot_callback = CustomCallback(plot_gen, music_encoder)
     lrs = WarmupCosineDecay(
         len(train_gen) *
         epochs,

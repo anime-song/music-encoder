@@ -128,9 +128,9 @@ if __name__ == "__main__":
     x_train, x_test, dataset = load_from_npz()
     monitor = 'val_loss'
     model_input = tf.keras.layers.Input(shape=(None, 12 * 3 * 7, 3))
-    ae_config = MusicEncoderConfig()
+    config = MusicEncoderConfig()
     quantize_model = QuantizeModel(
-        config=ae_config,
+        config=config,
         batch_size=batch_size,
         seq_len=patch_len)
     model_out = quantize_model(model_input)
