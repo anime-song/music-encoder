@@ -106,7 +106,7 @@ class MusicEncoder(tf.keras.Model):
             tf.keras.layers.Dense(
                 config.quantizer_embedding_dim,
                 dtype=tf.float32) for i in range(
-                config.num_quantizers)]
+                config.num_mlm_target_quantizers)]
 
     def load_quantize_model(self, path):
         self.quantize_model.load_weights(path)

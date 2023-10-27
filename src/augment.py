@@ -10,6 +10,7 @@ class MixStripes(tf.keras.layers.Layer):
             mask_ratio=None,
             random_noise_mask=False,
             fixed_stripes_num=False,
+            mini_batch_mix_mask=False,
             **kwargs):
         super(MixStripes, self).__init__(**kwargs)
         self.dim = dim
@@ -19,6 +20,7 @@ class MixStripes(tf.keras.layers.Layer):
         self.fixed_stripes_num = fixed_stripes_num
         self.mask_ratio = mask_ratio
         self.supports_masking = True
+        self.mini_batch_mix_mask = mini_batch_mix_mask
 
     def call(self, inputs, mask=None, training=None, add_loss=False):
         if not add_loss:
@@ -32,6 +34,18 @@ class MixStripes(tf.keras.layers.Layer):
             mask_emb = tf.random.uniform(
                 [], minval=0, maxval=1, dtype=inputs.dtype)
             inputs = tf.where(masks, mask_emb, inputs)
+        elif self.mini_batch_mix_mask:
+            batch_size = tf.shape(inputs)[0]
+            all_indices = tf.range(batch_size)
+            for i in range(batch_size):
+                random_index = tf.random.shuffle(
+                    tf.where(all_indices != i)[:, 0])[0]
+
+                mixed_batch = tf.where(
+                    masks[i], (inputs[i] + inputs[random_index]) * 0.5, inputs[i])
+                inputs = tf.tensor_scatter_nd_update(
+                    inputs, [[i]], [mixed_batch])
+
         else:
             inputs = tf.where(
                 masks, tf.constant(
@@ -96,22 +110,27 @@ class MixStripes(tf.keras.layers.Layer):
 class SpecMixAugmentation(tf.keras.layers.Layer):
     def __init__(self,
                  time_mix_width,
-                 time_stripes_num,
                  freq_mix_width,
-                 freq_stripes_num,
+                 time_mask_ratio=None,
+                 freq_mask_ratio=None,
                  random_noise_mask=False,
+                 mini_batch_mix_mask=False,
                  **kwargs):
         super(SpecMixAugmentation, self).__init__(**kwargs)
         self.time_mixer = MixStripes(
             dim=1,
             mix_width=time_mix_width,
-            stripes_num=time_stripes_num,
-            random_noise_mask=random_noise_mask)
+            stripes_num=1,
+            mask_ratio=time_mask_ratio,
+            random_noise_mask=random_noise_mask,
+            mini_batch_mix_mask=mini_batch_mix_mask)
         self.freq_mixer = MixStripes(
             dim=2,
             mix_width=freq_mix_width,
-            stripes_num=freq_stripes_num,
-            random_noise_mask=random_noise_mask)
+            stripes_num=1,
+            mask_ratio=freq_mask_ratio,
+            random_noise_mask=random_noise_mask,
+            mini_batch_mix_mask=mini_batch_mix_mask)
         self.supports_masking = True
 
     def call(self, inputs, mask=None, training=None):

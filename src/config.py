@@ -28,6 +28,7 @@ class MusicEncoderConfig:
     codebook_size: int = 1024
     commitment_cost: float = 0.0
     num_quantizers: int = 8
+    num_mlm_target_quantizers: int = 4
     ema_decay: float = 0.99
     threshold_ema_dead_code: float = 2.0
     sample_codebook_temperature: float = 0.0
