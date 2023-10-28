@@ -19,6 +19,7 @@ class DilatedMultiheadSelfAttentionWithRelativePositionalEmbedding(
             seq_len,
             dropout=0,
             attn_len=5,
+            layer_index=0,
             **kwargs):
         super(
             DilatedMultiheadSelfAttentionWithRelativePositionalEmbedding,
@@ -46,7 +47,7 @@ class DilatedMultiheadSelfAttentionWithRelativePositionalEmbedding(
                 attn_len),
             initializer='random_normal',
             trainable=True,
-            name="embeddings")
+            name="Er_{}".format(layer_index))
 
     def call(self, inputs, layer=0, training=False):
         query = inputs
@@ -140,6 +141,7 @@ class DilatedTransformerLayer(tf.keras.layers.Layer):
         is_gelu_approx=False,
         dropout=0.1,
         norm_first=True,
+        layer_index=0,
         **kwargs
     ):
         super().__init__(**kwargs)
@@ -161,7 +163,8 @@ class DilatedTransformerLayer(tf.keras.layers.Layer):
             batch_size=self.batch_size,
             seq_len=self.seq_len,
             dropout=self.dropout,
-            attn_len=attention_window_size)
+            attn_len=attention_window_size,
+            layer_index=layer_index)
 
         self.dropout1 = tf.keras.layers.Dropout(dropout)
         self.dropout2 = tf.keras.layers.Dropout(dropout)
@@ -267,13 +270,13 @@ class DilatedTransformer(tf.keras.layers.Layer):
                 norm_first=self.norm_first,
                 attention_window_size=attention_window_size,
                 batch_size=batch_size,
-                seq_len=seq_len) for i in range(
+                seq_len=seq_len,
+                layer_index=i) for i in range(
                 self.num_layers)]
 
     def call(self, inputs, training=False):
         for i, layer in enumerate(self.layers):
             inputs, _ = layer(inputs, layer=i, training=training)
-
         return inputs
 
     def get_config(self):

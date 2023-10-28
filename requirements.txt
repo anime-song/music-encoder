@@ -1,5 +1,5 @@
 tensorflow
-vector-quantize-tf==0.0.6
+vector-quantize-tf==0.0.7
 gradient_accumulator
 h5py
 scikit-learn
