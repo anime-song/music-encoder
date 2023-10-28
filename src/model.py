@@ -40,7 +40,7 @@ class QuantizeModel(tf.keras.Model):
         inputs = tf.transpose(inputs, (0, 1, 3, 2))
         inputs = tf.reshape(inputs, (self.batch_size, -1, 252 * 3))
 
-        quantized_inputs, encoding_indices = self.residual_vq(
+        quantized_inputs, all_quantized, encoding_indices = self.residual_vq(
             inputs, training=training)
         quantized_inputs = tf.keras.activations.relu(quantized_inputs)
 
@@ -52,7 +52,7 @@ class QuantizeModel(tf.keras.Model):
         self.add_loss(quantized_loss)
         self.add_metric(quantized_loss, name="quantized")
 
-        return quantized_inputs, encoding_indices
+        return quantized_inputs, all_quantized, encoding_indices
 
 
 class MusicEncoder(tf.keras.Model):
@@ -108,6 +108,10 @@ class MusicEncoder(tf.keras.Model):
                 dtype=tf.float32) for i in range(
                 config.num_mlm_target_quantizers)]
 
+        self.coarse_adapter = tf.keras.layers.Dense(
+            config.hidden_size, name="coarse_adapter")
+        self.num_mlm_target_quantizers = config.num_mlm_target_quantizers
+
     def load_quantize_model(self, path):
         self.quantize_model.load_weights(path)
         self.quantize_model.trainable = False
@@ -123,12 +127,18 @@ class MusicEncoder(tf.keras.Model):
         inputs = tf.transpose(inputs, (0, 1, 3, 2))
         inputs = tf.reshape(inputs, (self.batch_size, -1, 252 * 3))
 
-        _, encoding_indices = self.quantize_model(
+        _, all_quantized, encoding_indices = self.quantize_model(
             original_inputs, training=training)
 
         for feature_extractor_layer in self.feature_extract_layers:
             inputs = feature_extractor_layer(inputs, training=training)
         feature = inputs
+
+        coarse_tokens = tf.concat(
+            all_quantized[:self.num_mlm_target_quantizers], axis=-1)
+        inputs = tf.concat(
+            [tf.cast(coarse_tokens, dtype=inputs.dtype), inputs], axis=-1)
+        inputs = self.coarse_adapter(inputs)
 
         inputs, quantized_context, mask = self.context_encoder(
             inputs, training=training, add_loss=add_loss)
